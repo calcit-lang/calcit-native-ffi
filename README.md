@@ -46,6 +46,15 @@ pub unsafe extern "C" fn demo_calcit_ffi_v1(
 不希望无限等待，应显式使用 `BackpressurePolicy::bounded`，或直接调用一次性
 `enqueue` 并自行处理 `status::QUEUE_FULL`。
 
+多个同步 EDN 方法可以直接使用导出宏，省去每个模块重复编写 wrapper：
+
+```rust
+calcit_native_ffi::export_edn_buffer_method_v1!(
+  demo_calcit_ffi_v1,
+  demo
+);
+```
+
 详见：
 
 - [ABI 协议 / ABI protocol](docs/ABI.md)
@@ -63,6 +72,9 @@ registries, cancellation state, and server lifecycles remain module-owned.
 Explicitly invoke `export_buffer_abi_v1!` and, where needed,
 `export_async_abi_v1!` in the final dynamic library. This keeps allocation and
 release within the same linked artifact.
+
+Use `export_edn_buffer_method_v1!` for synchronous EDN methods to generate the
+three-argument C export while keeping each public symbol explicit.
 
 `BackpressurePolicy::default()` preserves the existing 1ms retry behavior.
 New code that must not wait indefinitely should use a bounded policy or handle
