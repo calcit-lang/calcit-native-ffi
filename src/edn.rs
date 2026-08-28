@@ -105,10 +105,31 @@ pub fn publish_emit(
     args: Vec<Edn>,
     policy: BackpressurePolicy,
 ) -> i32 {
+    publish_emit_until(host, task, args, policy, || true)
+}
+
+/// Encode callback arguments and publish an emit event while the caller-owned
+/// cancellation predicate permits queue retries.
+pub fn publish_emit_until<F>(
+    host: CalcitFfiAsyncHostV1,
+    task: CalcitFfiAsyncTaskV1,
+    args: Vec<Edn>,
+    policy: BackpressurePolicy,
+    should_continue: F,
+) -> i32
+where
+    F: FnMut() -> bool,
+{
     match encode_callback_args(args) {
-        Ok(payload) => {
-            crate::enqueue_with_backpressure(host, task, event_kind::EMIT, 0, &payload, policy)
-        }
+        Ok(payload) => crate::enqueue_with_backpressure_until(
+            host,
+            task,
+            event_kind::EMIT,
+            0,
+            &payload,
+            policy,
+            should_continue,
+        ),
         Err(_) => status::INTERNAL_ERROR,
     }
 }
@@ -126,7 +147,24 @@ pub fn publish_failure(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{copy_buffer, free_buffer};
+    use std::mem::size_of;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use crate::{ASYNC_PROTOCOL_VERSION, copy_buffer, free_buffer, task_flags, task_kind};
+
+    static ENQUEUE_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    unsafe extern "C" fn count_enqueue(
+        _: u64,
+        _: u64,
+        _: u32,
+        _: u64,
+        _: *const u8,
+        _: usize,
+    ) -> i32 {
+        ENQUEUE_CALLS.fetch_add(1, Ordering::SeqCst);
+        status::OK
+    }
 
     #[test]
     fn buffer_adapter_round_trips_edn() {
@@ -145,5 +183,36 @@ mod tests {
             expected
         );
         unsafe { free_buffer(output) };
+    }
+
+    #[test]
+    fn publish_emit_until_observes_cancellation_before_enqueue() {
+        ENQUEUE_CALLS.store(0, Ordering::SeqCst);
+        let host = CalcitFfiAsyncHostV1 {
+            protocol_version: ASYNC_PROTOCOL_VERSION,
+            struct_size: size_of::<CalcitFfiAsyncHostV1>() as u32,
+            context: 0,
+            enqueue: Some(count_enqueue),
+            configure_task: None,
+            open_response: None,
+        };
+        let task = CalcitFfiAsyncTaskV1 {
+            protocol_version: ASYNC_PROTOCOL_VERSION,
+            struct_size: size_of::<CalcitFfiAsyncTaskV1>() as u32,
+            handle: 1,
+            kind: task_kind::STREAM,
+            flags: task_flags::SERIAL_EVENTS,
+        };
+        assert_eq!(
+            publish_emit_until(
+                host,
+                task,
+                vec![Edn::Number(1.0)],
+                BackpressurePolicy::default(),
+                || false,
+            ),
+            status::HANDLE_CLOSING
+        );
+        assert_eq!(ENQUEUE_CALLS.load(Ordering::SeqCst), 0);
     }
 }
