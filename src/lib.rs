@@ -56,3 +56,24 @@ macro_rules! export_async_abi_v1 {
         }
     };
 }
+
+/// Export one synchronous Cirru EDN method through buffer protocol v1.
+///
+/// Available with the default `edn` feature. The handler accepts owned EDN
+/// arguments and returns an EDN value or message.
+/// The generated function keeps the public symbol explicit while delegating
+/// decoding, panic isolation, response encoding, and output ownership.
+#[macro_export]
+macro_rules! export_edn_buffer_method_v1 {
+    ($export:ident, $method:path) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $export(
+            request_ptr: *const u8,
+            request_len: usize,
+            output: *mut $crate::CalcitFfiBuffer,
+        ) -> i32 {
+            // SAFETY: this forwards the documented buffer protocol v1 contract.
+            unsafe { $crate::run_buffer_adapter(request_ptr, request_len, output, $method) }
+        }
+    };
+}

@@ -7,8 +7,9 @@
    constants、descriptor copy、buffer codec 和 panic adapter。
 3. 在最终 `cdylib` crate root 调用 `export_buffer_abi_v1!()`；异步或 blocking
    模块还要调用 `export_async_abi_v1!()`。
-4. 保留每个导出业务函数；函数体改为调用 `run_buffer_adapter`、
-   `run_blocking_adapter` 或 async helpers。
+4. 保留每个导出业务函数；同步 EDN 方法优先使用
+   `export_edn_buffer_method_v1!`，需要自定义边界时再直接调用
+   `run_buffer_adapter`、`run_blocking_adapter` 或 async helpers。
 5. 保留模块自己的 cancel handler、thread state、registry 和 terminal ordering。
 6. 通过真实 release dylib smoke 验证 symbol、请求、响应、取消和 buffer free。
 
@@ -22,8 +23,9 @@
    adapters.
 3. Invoke `export_buffer_abi_v1!()` in the final `cdylib` root. Async or
    blocking modules also invoke `export_async_abi_v1!()`.
-4. Keep each business export and delegate its body to `run_buffer_adapter`,
-   `run_blocking_adapter`, or the async helpers.
+4. Keep each business export. Prefer `export_edn_buffer_method_v1!` for
+   synchronous EDN methods; call `run_buffer_adapter`, `run_blocking_adapter`,
+   or the async helpers directly when the boundary needs custom behavior.
 5. Keep module-specific cancellation, thread state, registries, and terminal
    ordering local.
 6. Use a real release dylib smoke test for symbols, requests, responses,
