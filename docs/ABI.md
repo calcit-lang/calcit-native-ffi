@@ -17,6 +17,10 @@
 Host 读取后必须调用同一个动态库导出的 `calcit_ffi_buffer_free`。不得由 host
 直接构造 `Vec::from_raw_parts`，也不得使用另一个动态库的 free symbol。
 
+共享 crate 同时导出协议版本、固定 symbol/suffix 与 host 解析 method 时使用的
+function pointer 类型。Host 与 module 必须消费同一份 raw 定义，不能在各自
+仓库复制一份“布局相同”的 struct 或数值常量。
+
 Host-owned blocking callback buffer 则遵循相反方向：模块复制内容后调用
 `CalcitFfiBlockingHostV1.free_buffer`，不能调用模块自己的 buffer free。
 
@@ -33,6 +37,13 @@ Host-owned blocking callback buffer 则遵循相反方向：模块复制内容�
 
 Blocking callback 只能在 host 保留的执行线程调用。模块必须释放每一个 host
 返回的 callback buffer，并在协议需要时 exactly-once 调用 `finish`。
+
+### Resource token
+
+Resource v1 使用固定的 version/release symbol，以及名为
+`CalcitFfiResourceV1`、只包含 16-byte `token` buffer 的 Cirru EDN struct。
+共享 crate 只定义 wire contract；generation registry、lease intern、dylib pin
+与 exactly-once release 仍由模块和 host 各自按职责实现。
 
 ## English
 
@@ -56,6 +67,11 @@ After copying it, the host calls `calcit_ffi_buffer_free` from the same dynamic
 library. The host must not reconstruct the `Vec` itself or use another module's
 free symbol.
 
+The shared crate also exports protocol versions, fixed symbols/suffixes, and
+the function-pointer types used by host method resolution. The host and module
+must consume this single raw definition instead of maintaining structs or
+numeric constants that merely happen to share a layout.
+
 Host-owned blocking callback buffers flow in the opposite direction. The
 module copies the bytes and calls `CalcitFfiBlockingHostV1.free_buffer`, never
 its own buffer-free export.
@@ -75,3 +91,10 @@ its own buffer-free export.
 Blocking callbacks run only on the execution thread reserved by the host. The
 module releases every callback buffer returned by the host and calls `finish`
 exactly once when required by the method contract.
+
+### Resource token
+
+Resource v1 uses fixed version/release symbols and a `CalcitFfiResourceV1`
+Cirru EDN struct containing one 16-byte `token` buffer. The shared crate owns
+only this wire contract. Generation registries, lease interning, dylib pinning,
+and exactly-once release remain module- and host-owned responsibilities.
