@@ -11,7 +11,13 @@
    `export_edn_buffer_method_v1!`，需要自定义边界时再直接调用
    `run_buffer_adapter`、`run_blocking_adapter` 或 async helpers。
 5. 保留模块自己的 cancel handler、thread state、registry 和 terminal ordering。
-6. 通过真实 release dylib smoke 验证 symbol、请求、响应、取消和 buffer free。
+6. 普通 raw payload `emit` 使用 `enqueue_with_backpressure_until`，EDN callback
+   使用 `publish_emit_until`，连接模块自己的取消状态；`complete` / `fail` 不使用
+   该 predicate，以免取消路径跳过 terminal 收尾。
+7. 默认背压有 5 秒截止时间。只有能证明无限等待属于协议要求时才显式使用
+   `BackpressurePolicy::unbounded`。
+8. 通过真实 release dylib smoke 验证 symbol、请求、响应、队列饱和、取消和
+   buffer free。
 
 迁移应保持外部 symbol 名称与 EDN payload 不变。不要在同一 PR 顺便调整业务协议。
 
@@ -28,8 +34,15 @@
    or the async helpers directly when the boundary needs custom behavior.
 5. Keep module-specific cancellation, thread state, registries, and terminal
    ordering local.
-6. Use a real release dylib smoke test for symbols, requests, responses,
-   cancellation, and buffer release.
+6. Connect ordinary raw-payload `emit` calls to module-owned cancellation
+   through `enqueue_with_backpressure_until`, and use `publish_emit_until` for
+   EDN callbacks. Do not apply that predicate to `complete` or `fail`, because
+   cancellation must not skip terminal cleanup.
+7. Default backpressure has a five-second deadline. Use
+   `BackpressurePolicy::unbounded` only when indefinite waiting is an explicit
+   protocol requirement.
+8. Use a real release dylib smoke test for symbols, requests, responses, queue
+   saturation, cancellation, and buffer release.
 
 A migration keeps public symbol names and EDN payloads unchanged. Do not mix a
 business-protocol redesign into the extraction PR.

@@ -46,9 +46,17 @@ pub unsafe extern "C" fn demo_calcit_ffi_v1(
 }
 ```
 
-`BackpressurePolicy::default()` 保留现有 native 模块的 1ms retry 行为。新代码若
-不希望无限等待，应显式使用 `BackpressurePolicy::bounded`，或直接调用一次性
-`enqueue` 并自行处理 `status::QUEUE_FULL`。
+`BackpressurePolicy::default()` 每 1ms 重试，并在 5 秒后返回
+`status::QUEUE_FULL`，避免 host 队列持续饱和时永久占住 native worker。按次数
+限制可用 `bounded`，按时间限制可用 `deadline`，两者同时限制可用
+`bounded_with_deadline`；只有明确需要旧行为时才使用 `unbounded`。
+
+普通 raw payload `emit` 应使用 `enqueue_with_backpressure_until`，EDN callback
+应使用 `publish_emit_until`，接入模块自己的取消状态；
+它会在首次 enqueue 前及等待期间检查 predicate，取消时返回
+`status::HANDLE_CLOSING`，最长 10ms 重新检查一次。`complete` / `fail` 是任务
+terminal 事件，不应被业务取消 predicate 跳过；应使用普通背压 helper，让 host
+为 terminal 事件预留的容量完成收尾。
 
 多个同步 EDN 方法可以直接使用导出宏，省去每个模块重复编写 wrapper：
 
@@ -85,9 +93,20 @@ release within the same linked artifact.
 Use `export_edn_buffer_method_v1!` for synchronous EDN methods to generate the
 three-argument C export while keeping each public symbol explicit.
 
-`BackpressurePolicy::default()` preserves the existing 1ms retry behavior.
-New code that must not wait indefinitely should use a bounded policy or handle
-`status::QUEUE_FULL` after a single `enqueue` call.
+`BackpressurePolicy::default()` retries every 1ms and returns
+`status::QUEUE_FULL` after five seconds, so a permanently saturated host queue
+cannot retain a native worker forever. Use `bounded` for a retry limit,
+`deadline` for a time limit, `bounded_with_deadline` for both, and `unbounded`
+only when the legacy behavior is explicitly required.
+
+Ordinary raw-payload `emit` paths should use
+`enqueue_with_backpressure_until`, while EDN callbacks should use
+`publish_emit_until`, to connect module-owned cancellation state. The
+transport checks the predicate before the first enqueue and while waiting,
+returns `status::HANDLE_CLOSING` on cancellation, and polls at most every 10ms.
+`complete` and `fail` are terminal events and must not be skipped by the
+business cancellation predicate; use the regular backpressure helper so the
+host's reserved terminal capacity can close them.
 
 ## Compatibility
 
