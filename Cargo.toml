@@ -1,0 +1,17 @@
+[package]
+name = "calcit_native_ffi"
+version = "0.1.0"
+edition = "2024"
+description = "Stable C ABI types and adapters for Calcit native modules"
+license = "MIT"
+repository = "https://github.com/calcit-lang/calcit-native-ffi"
+readme = "README.md"
+keywords = ["calcit", "ffi", "abi", "dylib"]
+categories = ["api-bindings", "development-tools::ffi"]
+
+[features]
+default = ["edn"]
+edn = ["dep:cirru_edn"]
+
+[dependencies]
+cirru_edn = { version = "0.8.0", optional = true }
