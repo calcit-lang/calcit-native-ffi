@@ -10,6 +10,10 @@ Stable C ABI types and adapters shared by Calcit native modules.
 native 模块复制 descriptor、buffer ownership、Cirru EDN 编解码、异步任务和
 blocking callback 模板。
 
+Calcit host 也可以关闭默认 feature，仅复用 symbol 常量、function pointer
+签名、resource token 常量和 C-layout descriptor。动态加载、task/resource
+registry 与生命周期仍由 host 负责。
+
 边界刻意保持较窄：业务参数、线程、连接表、取消状态和 server 生命周期仍由
 各模块维护。
 
@@ -65,6 +69,11 @@ calcit_native_ffi::export_edn_buffer_method_v1!(
 This crate maintains the transport contract between the Calcit runtime and
 Rust `cdylib` modules. It removes repeated descriptor validation, buffer
 ownership, Cirru EDN codecs, asynchronous-task, and blocking-callback adapters.
+
+The Calcit host may disable default features and reuse only symbol constants,
+function-pointer signatures, resource-token constants, and C-layout
+descriptors. Dynamic loading, task/resource registries, and lifecycle remain
+host-owned.
 
 The boundary is intentionally narrow. Business arguments, threads,
 registries, cancellation state, and server lifecycles remain module-owned.
