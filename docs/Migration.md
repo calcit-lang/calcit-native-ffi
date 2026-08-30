@@ -1,3 +1,25 @@
+---
+title: "Migrate a Calcit native module to calcit-native-ffi"
+summary: "Remove copied ABI boilerplate while preserving symbols, payloads, cancellation, terminal ordering, and allocator ownership"
+scope: "module"
+kind: "guide"
+category: "ffi"
+aliases:
+  - "native ffi migration"
+  - "extract FFI boilerplate"
+  - "export_buffer_abi_v1"
+  - "export_async_abi_v1"
+  - "export_edn_buffer_method_v1"
+  - "bounded backpressure"
+  - "迁移原生模块"
+entry_for:
+  - "calcit_native_ffi"
+  - "run_buffer_adapter"
+  - "run_blocking_adapter"
+  - "publish_emit_until"
+  - "enqueue_with_backpressure_until"
+---
+
 # Migration guide / 迁移指南
 
 ## 中文

@@ -1,3 +1,25 @@
+---
+title: "Calcit native C ABI v1"
+summary: "Stable C-layout contracts for buffers, asynchronous tasks, blocking callbacks, responses, and native resource tokens"
+scope: "module"
+kind: "reference"
+category: "ffi"
+aliases:
+  - "native ffi"
+  - "C ABI"
+  - "CalcitFfiBuffer"
+  - "async task ABI"
+  - "blocking callback ABI"
+  - "response capability"
+  - "resource token"
+  - "原生模块 ABI"
+entry_for:
+  - "CalcitFfiBuffer"
+  - "CalcitFfiAsyncHostV1"
+  - "CalcitFfiBlockingHostV1"
+  - "CalcitFfiResourceV1"
+---
+
 # Calcit native C ABI v1 / Calcit 原生 C ABI v1
 
 ## 中文
