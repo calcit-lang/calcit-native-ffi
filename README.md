@@ -4,6 +4,28 @@ Calcit native 模块共用的稳定 C ABI 类型与适配器。
 
 Stable C ABI types and adapters shared by Calcit native modules.
 
+## Repository status / 仓库状态
+
+`calcit-native-ffi` 是生产使用的共享 ABI/helper crate，不是
+`dylib-workflow` 模板，也不是具体 native 模块的运行时。`src/abi.rs` 是 buffer、
+async、blocking 与 resource v1 的协议版本、symbol、function pointer 和
+`#[repr(C)]` descriptor 的唯一 Rust source of truth。
+
+`calcit-native-ffi` is the production shared ABI/helper crate. It is neither
+the `dylib-workflow` template nor a runtime for a specific native module.
+`src/abi.rs` is the single Rust source of truth for buffer, async, blocking,
+and resource-v1 versions, symbols, function pointers, and `#[repr(C)]`
+descriptors.
+
+Calcit core 负责动态加载、task/resource registry、callback scheduling、lease、
+取消和错误映射；业务模块负责线程、连接、业务状态与 terminal ordering。本 crate
+只拥有跨边界 contract 和可复用 transport adapters。
+
+Calcit core owns dynamic loading, task/resource registries, callback
+scheduling, leases, cancellation, and error mapping. Business modules own
+threads, connections, domain state, and terminal ordering. This crate owns
+only the cross-boundary contract and reusable transport adapters.
+
 ## 中文
 
 该 crate 维护 Calcit runtime 与 Rust `cdylib` 之间的传输协议，避免每个
@@ -115,6 +137,31 @@ host's reserved terminal capacity can close them.
 - Async and blocking protocol: v1
 - Default feature `edn`: Cirru EDN request/result adapters
 - `--no-default-features`: raw ABI, buffer, and async transport only
+
+Published v1 field order, numeric values, and exported symbol names are
+immutable within compatible `0.1.x` releases. Additive helpers may ship in a
+patch release; any ABI-incompatible contract requires a new protocol suffix
+and an explicit migration path. Releases are cut when a shared contract or
+adapter change is needed by consumers, rather than for template-only changes.
+
+已发布的 v1 字段顺序、数值和导出 symbol 在兼容的 `0.1.x` 版本内保持不变。新增
+helper 可以通过 patch release 发布；不兼容 ABI 必须使用新的协议 suffix，并提供
+明确迁移路径。仅在消费方需要共享 contract 或 adapter 更新时发版，不跟随模板项目
+做无意义版本迭代。
+
+## Consumers and tracking / 消费方与追踪
+
+| Consumer / 消费方 | Shared contract / 共享边界 | Tracking / 追踪 |
+| --- | --- | --- |
+| [Calcit core](https://github.com/calcit-lang/calcit) | raw ABI with `default-features = false`; host lifecycle remains in core / 关闭默认 feature 复用 raw ABI，host 生命周期留在 core | [calcit#544](https://github.com/calcit-lang/calcit/issues/544) |
+| [calcit-bindgen](https://github.com/calcit-lang/calcit-bindgen) | generated adapters import public ABI/helper APIs / 生成 adapter 引用公开 ABI/helper API | [calcit-bindgen#3](https://github.com/calcit-lang/calcit-bindgen/issues/3) |
+| extracted `caps` tool / 拆分后的 `caps` 工具 | verifier consumes ABI constants and descriptors without depending on core / verifier 不依赖 core，直接消费 ABI constants/descriptors | [calcit#546](https://github.com/calcit-lang/calcit/issues/546) |
+| native modules / 原生模块 | macros, codecs, descriptors, bounded backpressure / 宏、编解码、descriptor 与有界背压 | [migration guide](docs/Migration.md) |
+
+Repository-boundary and cross-consumer work is tracked in
+[issue #7](https://github.com/calcit-lang/calcit-native-ffi/issues/7) and the
+[Calcit modularization index](https://github.com/calcit-lang/calcit/issues/549).
+仓库边界与跨消费方工作统一由上述两个 Issue 索引。
 
 ## Development
 
