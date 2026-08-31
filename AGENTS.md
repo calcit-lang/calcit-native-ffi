@@ -14,6 +14,8 @@
 - 发布前同时验证默认 feature 与 `--no-default-features`；涉及 ABI 或 adapter 的
   改动还要在 Calcit core 和至少一个代表性 native module 中执行真实 release
   dylib smoke。
+- `consumer-pins.env` 是跨消费方 smoke 的可复现 revision 集合；更新 pin 时必须
+  同时运行 `scripts/check-consumer-matrix.sh`，不得改用 branch 或浮动 tag。
 - v1 ABI 不兼容改动不能作为 `0.1.x` patch 发布；必须增加新协议 suffix，并在
   README、ABI reference、migration guide 与 consumer tracking Issue 中记录迁移。
 
@@ -34,6 +36,9 @@
 - Before release, test both default features and `--no-default-features`. ABI
   or adapter changes also require a real release-dylib smoke in Calcit core
   and at least one representative native module.
+- `consumer-pins.env` is the reproducible revision set for cross-consumer
+  smoke. Run `scripts/check-consumer-matrix.sh` whenever a pin changes; never
+  replace a full commit hash with a branch or floating tag.
 - Do not publish a v1 ABI break as a `0.1.x` patch. Introduce a new protocol
   suffix and document migration in the README, ABI reference, migration guide,
   and consumer tracking Issue.

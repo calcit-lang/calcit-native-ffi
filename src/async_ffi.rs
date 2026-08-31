@@ -295,17 +295,17 @@ mod tests {
     use std::mem::size_of;
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    static CALLS: AtomicU32 = AtomicU32::new(0);
-
     unsafe extern "C" fn queue_then_accept(
-        _: u64,
+        context: u64,
         _: u64,
         _: u32,
         _: u64,
         _: *const u8,
         _: usize,
     ) -> i32 {
-        if CALLS.fetch_add(1, Ordering::SeqCst) == 0 {
+        // SAFETY: each test keeps its local counter alive for the synchronous call.
+        let calls = unsafe { &*(context as *const AtomicU32) };
+        if calls.fetch_add(1, Ordering::SeqCst) == 0 {
             status::QUEUE_FULL
         } else {
             status::OK
@@ -313,14 +313,16 @@ mod tests {
     }
 
     unsafe extern "C" fn queue_forever(
-        _: u64,
+        context: u64,
         _: u64,
         _: u32,
         _: u64,
         _: *const u8,
         _: usize,
     ) -> i32 {
-        CALLS.fetch_add(1, Ordering::SeqCst);
+        // SAFETY: each test keeps its local counter alive for the synchronous call.
+        let calls = unsafe { &*(context as *const AtomicU32) };
+        calls.fetch_add(1, Ordering::SeqCst);
         status::QUEUE_FULL
     }
 
@@ -334,11 +336,11 @@ mod tests {
         }
     }
 
-    fn host(enqueue: crate::AsyncHostEnqueue) -> CalcitFfiAsyncHostV1 {
+    fn host(enqueue: crate::AsyncHostEnqueue, calls: &AtomicU32) -> CalcitFfiAsyncHostV1 {
         CalcitFfiAsyncHostV1 {
             protocol_version: ASYNC_PROTOCOL_VERSION,
             struct_size: size_of::<CalcitFfiAsyncHostV1>() as u32,
-            context: 0,
+            context: (calls as *const AtomicU32) as u64,
             enqueue: Some(enqueue),
             configure_task: None,
             open_response: None,
@@ -347,11 +349,11 @@ mod tests {
 
     #[test]
     fn backpressure_policy_retries_queue_full() {
-        CALLS.store(0, Ordering::SeqCst);
+        let calls = AtomicU32::new(0);
         let policy = BackpressurePolicy::bounded(Duration::ZERO, 1);
         assert_eq!(
             enqueue_with_backpressure(
-                host(queue_then_accept),
+                host(queue_then_accept, &calls),
                 task(),
                 event_kind::EMIT,
                 0,
@@ -360,7 +362,7 @@ mod tests {
             ),
             status::OK
         );
-        assert_eq!(CALLS.load(Ordering::SeqCst), 2);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 
     #[test]
@@ -373,10 +375,10 @@ mod tests {
 
     #[test]
     fn zero_deadline_attempts_once_and_returns_queue_full() {
-        CALLS.store(0, Ordering::SeqCst);
+        let calls = AtomicU32::new(0);
         assert_eq!(
             enqueue_with_backpressure(
-                host(queue_forever),
+                host(queue_forever, &calls),
                 task(),
                 event_kind::EMIT,
                 0,
@@ -385,18 +387,18 @@ mod tests {
             ),
             status::QUEUE_FULL
         );
-        assert_eq!(CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 
     #[test]
     fn deadline_does_not_enqueue_again_after_wait_expires() {
-        CALLS.store(0, Ordering::SeqCst);
+        let calls = AtomicU32::new(0);
         let started_at = Instant::now();
         let policy =
             BackpressurePolicy::deadline(Duration::from_secs(1), Duration::from_millis(10));
         assert_eq!(
             enqueue_with_backpressure(
-                host(queue_forever),
+                host(queue_forever, &calls),
                 task(),
                 event_kind::EMIT,
                 0,
@@ -405,16 +407,16 @@ mod tests {
             ),
             status::QUEUE_FULL
         );
-        assert_eq!(CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert!(started_at.elapsed() < Duration::from_millis(500));
     }
 
     #[test]
     fn cancellation_before_first_attempt_does_not_enqueue() {
-        CALLS.store(0, Ordering::SeqCst);
+        let calls = AtomicU32::new(0);
         assert_eq!(
             enqueue_with_backpressure_until(
-                host(queue_forever),
+                host(queue_forever, &calls),
                 task(),
                 event_kind::EMIT,
                 0,
@@ -424,17 +426,17 @@ mod tests {
             ),
             status::HANDLE_CLOSING
         );
-        assert_eq!(CALLS.load(Ordering::SeqCst), 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
     }
 
     #[test]
     fn cancellation_interrupts_retry_wait() {
-        CALLS.store(0, Ordering::SeqCst);
+        let calls = AtomicU32::new(0);
         let mut checks = 0;
         let started_at = Instant::now();
         assert_eq!(
             enqueue_with_backpressure_until(
-                host(queue_forever),
+                host(queue_forever, &calls),
                 task(),
                 event_kind::EMIT,
                 0,
@@ -447,7 +449,7 @@ mod tests {
             ),
             status::HANDLE_CLOSING
         );
-        assert_eq!(CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert!(started_at.elapsed() < Duration::from_millis(500));
     }
 }
