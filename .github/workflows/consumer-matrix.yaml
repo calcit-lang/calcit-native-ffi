@@ -1,0 +1,30 @@
+name: Cross-consumer ABI matrix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "src/**"
+      - "consumer-pins.env"
+      - "scripts/check-consumer-matrix.sh"
+      - "tests/fixtures/generated-md5/**"
+      - ".github/workflows/consumer-matrix.yaml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  consumers:
+    name: Consumers / Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --manifest-path tests/fixtures/generated-md5/Cargo.toml --check
+      - run: bash -n scripts/check-consumer-matrix.sh
+      - run: bash scripts/check-consumer-matrix.sh

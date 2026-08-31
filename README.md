@@ -93,6 +93,7 @@ calcit_native_ffi::export_edn_buffer_method_v1!(
 
 - [ABI 协议 / ABI protocol](docs/ABI.md)
 - [迁移指南 / Migration guide](docs/Migration.md)
+- [跨消费方矩阵 / Cross-consumer matrix](docs/ConsumerMatrix.md)
 
 ## English
 
@@ -153,7 +154,7 @@ helper 可以通过 patch release 发布；不兼容 ABI 必须使用新的协�
 
 | Consumer / 消费方 | Shared contract / 共享边界 | Tracking / 追踪 |
 | --- | --- | --- |
-| [Calcit core](https://github.com/calcit-lang/calcit) | raw ABI with `default-features = false`; host lifecycle remains in core / 关闭默认 feature 复用 raw ABI，host 生命周期留在 core | [calcit#544](https://github.com/calcit-lang/calcit/issues/544) |
+| [Calcit core](https://github.com/calcit-lang/calcit) | raw ABI with `default-features = false`; host lifecycle remains in core / 关闭默认 feature 复用 raw ABI，host 生命周期留在 core | [consumer matrix](docs/ConsumerMatrix.md) |
 | [calcit-bindgen](https://github.com/calcit-lang/calcit-bindgen) | generated adapters import public ABI/helper APIs / 生成 adapter 引用公开 ABI/helper API | [calcit-bindgen#3](https://github.com/calcit-lang/calcit-bindgen/issues/3) |
 | extracted `caps` tool / 拆分后的 `caps` 工具 | verifier consumes ABI constants and descriptors without depending on core / verifier 不依赖 core，直接消费 ABI constants/descriptors | [calcit#546](https://github.com/calcit-lang/calcit/issues/546) |
 | native modules / 原生模块 | macros, codecs, descriptors, bounded backpressure / 宏、编解码、descriptor 与有界背压 | [migration guide](docs/Migration.md) |
@@ -171,6 +172,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 cargo test --no-default-features
 cargo package
+bash scripts/check-consumer-matrix.sh
 ```
 
 Every Issue and PR must contain both Chinese and English descriptions.
